@@ -1,2 +1,9 @@
 include LICENSE.txt
 include README.md
+recursive-include ocpp/management *
+recursive-include ocpp/migrations *
+recursive-include ocpp/models *
+recursive-include ocpp/services *
+recursive-include ocpp/tests *
+recursive-include ocpp/types *
+recursive-include ocpp/utils *
