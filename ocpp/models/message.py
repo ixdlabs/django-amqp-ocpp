@@ -81,7 +81,9 @@ class Message(Timestamped):
         else:
             raise ValueError("Unknown message type {}".format(message_type))
 
-        if Message.objects.exists(actor=ActorType.charge_point, unique_id=unique_id):
+        if Message.objects.filter(
+            actor=ActorType.charge_point, unique_id=unique_id
+        ).exists():
             raise ValueError("Unique id {} is not unique".format(unique_id))
 
         return Message.objects.create(
