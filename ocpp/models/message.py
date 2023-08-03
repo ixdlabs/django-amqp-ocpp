@@ -84,12 +84,6 @@ class Message(Timestamped):
         if Message.objects.exists(actor=ActorType.charge_point, unique_id=unique_id):
             raise ValueError("Unique id {} is not unique".format(unique_id))
 
-        if not Action.is_valid(action):
-            raise ValueError("Unknown action {}".format(action))
-
-        if not ErrorCode.is_valid(error_code):
-            raise ValueError("Unknown error code {}".format(error_code))
-
         return Message.objects.create(
             charge_point=charge_point,
             message_type=message_type,
