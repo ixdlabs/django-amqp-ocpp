@@ -291,7 +291,7 @@
         } else if (message.type === "CALL") {
           if (message.action === "RemoteStartTransaction") {
             $("#idTag").val(message.payload.idTag);
-            stateTransactionStarted();
+            $("#sendStartTxnBtn").trigger("click");
           }
         }
       };
