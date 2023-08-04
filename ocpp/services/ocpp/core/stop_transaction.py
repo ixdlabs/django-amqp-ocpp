@@ -8,7 +8,12 @@ class StopTransactionMiddleware(OCPPMiddleware):
     def handle(self, req: OCPPRequest) -> OCPPResponse:
         message = req.message
         transaction = message.transaction_from_data()
-        transaction.stop(StopReason(message.data["reason"]), message.data["meterStop"])
+
+        # If ommitted, then the reason is Local as per spec
+        reason_str = message.data.get("reason", None)
+        reason = StopReason(reason_str) if reason_str else StopReason.Local
+
+        transaction.stop(reason, message.data["meterStop"])
         transaction_data = message.data.get("transactionData") or []
         for meter_value in transaction_data:
             for sampled_value in meter_value["sampledValue"]:

@@ -31,8 +31,8 @@ OCPP_HEARTBEAT_INTERVAL = 3600
 # No need to set again
 # Can leave as not-set
 OCPP_MIDDLEWARE = {
-    (Action.Authorize, MessageType.call): [AuthorizeMiddleware],
-    (Action.BootNotification, MessageType.call): [BootNotificationMiddleware],
+    (Action.Authorize, MessageType.call): [AuthorizeMiddleware], # Tested
+    (Action.BootNotification, MessageType.call): [BootNotificationMiddleware], # Tested
     (Action.DataTransfer, MessageType.call): [DataTransferMiddleware],
     (Action.DiagnosticsStatusNotification, MessageType.call): [
         DiagnosticsStatusNotificationMiddleware
@@ -40,17 +40,17 @@ OCPP_MIDDLEWARE = {
     (Action.FirmwareStatusNotification, MessageType.call): [
         FirmwareStatusNotificationMiddleware
     ],
-    (Action.Heartbeat, MessageType.call): [HeartbeatMiddleware],
-    (Action.MeterValues, MessageType.call): [MeterValuesMiddleware],
+    (Action.Heartbeat, MessageType.call): [HeartbeatMiddleware], # Tested
+    (Action.MeterValues, MessageType.call): [MeterValuesMiddleware], # Tested
     (Action.StartTransaction, MessageType.call): [
         OrphanedTransactionMiddleware,
         StartTransactionMiddleware,
-    ],
+    ], # Tested
     (Action.StatusNotification, MessageType.call): [
         AutoRemoteStartMiddleware, # This is the additional middleware added (see default configuration)
         StatusNotificationMiddleware,
     ],
-    (Action.StopTransaction, MessageType.call): [StopTransactionMiddleware],
+    (Action.StopTransaction, MessageType.call): [StopTransactionMiddleware], # Tested
 }
 ```
 

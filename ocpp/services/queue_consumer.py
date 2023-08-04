@@ -4,7 +4,7 @@ import logging
 import pika
 import pika.exceptions
 import time
-from django.conf import settings
+from ocpp import settings
 from pika.connection import URLParameters
 
 logger = logging.getLogger(__name__)

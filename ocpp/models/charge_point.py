@@ -1,6 +1,7 @@
 from django.db import models
 
 from ocpp.types.charge_point_status import ChargePointStatus
+from ocpp.types.charge_point_error import ChargePointError
 from ocpp.utils.model.timestamped import Timestamped
 
 
@@ -11,7 +12,7 @@ class ChargePoint(Timestamped):
         max_length=64, choices=ChargePointStatus.choices(), null=True, blank=True
     )
     error_code = models.CharField(
-        max_length=64, choices=ChargePointStatus.choices(), null=True, blank=True
+        max_length=64, choices=ChargePointError.choices(), null=True, blank=True
     )
     is_connected = models.BooleanField(default=False)
     vendor_error_code = models.CharField(max_length=64, default="", blank=True)

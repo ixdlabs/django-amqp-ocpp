@@ -1,4 +1,4 @@
-from django.conf import settings
+from ocpp.settings import OCPP_HEARTBEAT_INTERVAL
 
 from ocpp.services.ocpp.base import OCPPMiddleware, OCPPResponse, OCPPRequest
 from ocpp.types.registration_status import RegistrationStatus
@@ -31,7 +31,7 @@ class BootNotificationMiddleware(OCPPMiddleware):
         res.message.data.update(
             dict(
                 currentTime=utc_now(),
-                interval=settings.OCPP_HEARTBEAT_INTERVAL,
+                interval=OCPP_HEARTBEAT_INTERVAL,
                 status=RegistrationStatus.Accepted,
             )
         )

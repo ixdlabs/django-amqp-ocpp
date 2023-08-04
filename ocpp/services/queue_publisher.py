@@ -2,7 +2,7 @@ import logging
 import threading
 
 import pika
-from django.conf import settings
+from ocpp import settings
 from pika import URLParameters
 from pika.exceptions import AMQPError
 from retry import retry

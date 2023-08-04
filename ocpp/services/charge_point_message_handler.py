@@ -1,6 +1,8 @@
 import abc
+import logging
 from functools import lru_cache
 
+from ocpp.types.error_code import ErrorCode
 from ocpp.models.message import Message
 from ocpp.services.charge_point_service import ChargePointService
 from ocpp.services.ocpp.anon.auto_remote_start import AutoRemoteStartMiddleware
@@ -17,6 +19,7 @@ from ocpp.services.ocpp.core.diagnostics_status_notification import (
 from ocpp.services.ocpp.core.firmware_status_notification import (
     FirmwareStatusNotificationMiddleware,
 )
+from ocpp.services.ocpp.base import OCPPResponse
 from ocpp.services.ocpp.core.heartbeat import HeartbeatMiddleware
 from ocpp.services.ocpp.core.meter_values import MeterValuesMiddleware
 from ocpp.services.ocpp.core.start_transaction import StartTransactionMiddleware
@@ -27,6 +30,8 @@ from ocpp.types.actor_type import ActorType
 from ocpp.types.message_type import MessageType
 from ocpp.utils.serialization import json_decode, json_encode
 from ocpp.utils.settings import load_ocpp_middleware
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MIDDLEWARE_CONFIG = {
     (Action.Authorize, MessageType.call): [AuthorizeMiddleware],
@@ -71,6 +76,22 @@ class MessageTypeHandler(abc.ABC):
 
 
 class ChargePointCallHandler(MessageTypeHandler):
+    def handle_error(self, message: Message, e: Exception):
+        return OCPPResponse(
+            message=Message.objects.create(
+                charge_point=message.charge_point,
+                actor=ActorType.central_system,
+                unique_id=message.unique_id,
+                message_type=int(MessageType.call_error),
+                error_code=ErrorCode.from_exception(e),
+                error_description=str(e),
+                data={},
+            ),
+            transaction=None,
+            side_effects=[],
+            extra={},
+        )
+
     def handle(self, message: Message):
         message_type = MessageType(message.message_type)
         action = Action(message.action)
@@ -80,7 +101,11 @@ class ChargePointCallHandler(MessageTypeHandler):
             DEFAULT_MIDDLEWARE_CONFIG.get((action, message_type), []),
         )
         middleware = get_middleware(tuple(middleware_classes))
-        res = middleware.handle(OCPPRequest(message=message, extra={}))
+        try:
+            res = middleware.handle(OCPPRequest(message=message, extra={}))
+        except Exception as e:
+            logger.exception("MIDDLEWARE HANDLE")
+            res = self.handle_error(message, e)
         res.message.data = json_decode(
             json_encode(res.message.data)
         )  # make serializable
