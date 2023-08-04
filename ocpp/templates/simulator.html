@@ -14,7 +14,7 @@
   </head>
 
   <body>
-    <h1><span id="status">🔴 </span>OCPP-J 1.6 Simulator</h1>
+    <h1><span id="status"></span>OCPP-J 1.6 Simulator</h1>
 
     <form id="ocppForm">
       <h2>Connect to the Central Station</h2>
@@ -39,13 +39,85 @@
       <button type="button" id="connectBtn">Connect</button>
     </form>
 
-    <form id="actionForm" style="display: none">
-      <h2>
-        Interact with the charging station as
-        <span class="chargingStationId"></span>
-      </h2>
-      <button type="button" id="sendBootBtn">Send BootNotification</button>
-      <button type="button" id="sendHeartBeatBtn">Send HeartBeat</button>
+    <form id="actionForm">
+      <div id="actionFormBooting">
+        <h2>
+          Interact with the charging station as
+          <span class="chargingStationId"></span>
+        </h2>
+        <hr />
+        <h3>Send BootNotification to notify Charging Station details</h3>
+        <button type="button" id="sendBootBtn">Send BootNotification</button>
+        <hr />
+      </div>
+
+      <div id="actionFormBooted">
+        <h3>Send HeartBeat to notify online status</h3>
+        <button type="button" id="sendHeartBeatBtn">Send HeartBeat</button>
+        <hr />
+
+        <h3>Send Status Notification to notify error/device status</h3>
+        <label for="statusNotifErrorCode">Error Code:</label>
+        <select name="statusNotifErrorCode" id="statusNotifErrorCode">
+          <option value="ConnectorLockFailure">ConnectorLockFailure</option>
+          <option value="EVCommunicationError">EVCommunicationError</option>
+          <option value="GroundFailure">GroundFailure</option>
+          <option value="HighTemperature">HighTemperature</option>
+          <option value="InternalError">InternalError</option>
+          <option value="LocalListConflict">LocalListConflict</option>
+          <option value="NoError" selected>NoError</option>
+          <option value="OtherError">OtherError</option>
+          <option value="OverCurrentFailure">OverCurrentFailure</option>
+          <option value="OverVoltage">OverVoltage</option>
+          <option value="PowerMeterFailure">PowerMeterFailure</option>
+          <option value="PowerSwitchFailure">PowerSwitchFailure</option>
+          <option value="ReaderFailure">ReaderFailure</option>
+          <option value="ResetFailure">ResetFailure</option>
+          <option value="UnderVoltage">UnderVoltage</option>
+          <option value="WeakSignal">WeakSignal</option>
+        </select>
+        <label for="statusNotifStatus">Status:</label>
+        <select name="statusNotifStatus" id="statusNotifStatus">
+          <option value="Available" selected>Available</option>
+          <option value="Preparing">Preparing</option>
+          <option value="Charging">Charging</option>
+          <option value="SuspendedEVSE">SuspendedEVSE</option>
+          <option value="SuspendedEV">SuspendedEV</option>
+          <option value="Finishing">Finishing</option>
+          <option value="Reserved">Reserved</option>
+        </select>
+        <button type="button" id="sendStatusNotifBtn">
+          Send StatusNotification
+        </button>
+        <hr />
+      </div>
+
+      <div id="actionFormAuthorizing">
+        <h3>Send Authorize to authorize an owner of an electric vehicle</h3>
+        <label for="idTag">ID Tag:</label>
+        <input type="text" name="idTag" id="idTag" value="DEMO_EV_VEHICLE" />
+        <button type="button" id="sendAuthorizeBtn">Send Authorize</button>
+        <hr />
+      </div>
+
+      <div id="actionFormAuthorized">
+        <h3>Start transaction to start charging</h3>
+        <button type="button" id="sendStartTxnBtn">
+          Send Start Transaction
+        </button>
+        <hr />
+      </div>
+
+      <div id="actionFormTransactionStarted">
+        <h3>Send Meter Values to notify electrical meter samples</h3>
+        <label for="meterValue">Meter Value:</label>
+        <input type="number" name="meterValue" id="meterValue" value="10" />
+        <button type="button" id="sendMeterValueBtn">Send Meter Value</button>
+        <hr />
+        <h3>Stop transaction to stop charging</h3>
+        <button type="button" id="sendStopTxnBtn">Send Stop Transaction</button>
+        <hr />
+      </div>
     </form>
 
     <pre>
@@ -53,10 +125,13 @@
     Logs will show up here...
     </code>
 </pre>
-
+    <address>
+      <a href="mailto:sunera@ixdlabs.com">@kdsuneraavinash</a>
+    </address>
     <script>
       // OCPP 1.6J -------------------------------------------------------------------------------------------------------
 
+      const sentMessages = {};
       const sessionId = crypto.randomUUID();
       let lastMessageId = 0;
       const CALL_TYPE = 2;
@@ -65,6 +140,7 @@
 
       const createCall = (action, payload) => {
         const messageId = `${sessionId}-${lastMessageId++}`;
+        sentMessages[messageId] = action;
         const data = [CALL_TYPE, messageId, action, payload];
         return JSON.stringify(data);
       };
@@ -78,13 +154,21 @@
           }
           case CALL_RESULT_TYPE: {
             const [_, messageId, payload] = data;
-            return { type: "CALL_RESULT", messageId, payload };
+            const rememberedAction = sentMessages[messageId];
+            return {
+              type: "CALL_RESULT",
+              messageId,
+              rememberedAction,
+              payload,
+            };
           }
           case CALL_ERROR_TYPE: {
             const [_, messageId, errorCode, errorDescription, payload] = data;
+            const rememberedAction = sentMessages[messageId];
             return {
               type: "CALL_ERROR",
               messageId,
+              rememberedAction,
               errorCode,
               errorDescription,
               payload,
@@ -95,9 +179,8 @@
         }
       };
 
-      // WebSocket Logic -------------------------------------------------------------------------------------------------
+      // UI Logic --------------------------------------------------------------------------------------------------------
 
-      let websocket;
       const logs = [];
 
       const addLog = (type = null, ...log) => {
@@ -123,35 +206,104 @@
         $("#logs").html(logs.join("\n"));
       };
 
-      const connected = () => {
+      const stateConnected = () => {
         $("#status").html("🟢 ");
         $("#ocppForm").hide();
         $("#actionForm").show();
+        $("#actionFormBooting").show();
+        $("#actionFormBooted").hide();
+        $("#actionFormAuthorizing").hide();
+        $("#actionFormAuthorized").hide();
+        $("#actionFormTransactionStarted").hide();
       };
 
-      const disconnected = () => {
+      const stateDisconnected = () => {
         $("#status").html("🔴 ");
         $("#ocppForm").show();
         $("#actionForm").hide();
+        $("#actionFormBooting").show();
+        $("#actionFormBooted").hide();
+        $("#actionFormAuthorizing").hide();
+        $("#actionFormAuthorized").hide();
+        $("#actionFormTransactionStarted").hide();
       };
+
+      const stateBooted = () => {
+        $("#status").html("🟢 ");
+        $("#ocppForm").hide();
+        $("#actionForm").show();
+        $("#actionFormBooting").hide();
+        $("#actionFormBooted").show();
+        $("#actionFormAuthorizing").show();
+        $("#actionFormAuthorized").hide();
+        $("#actionFormTransactionStarted").hide();
+      };
+
+      const stateAuthorized = () => {
+        $("#status").html("🟢 ");
+        $("#ocppForm").hide();
+        $("#actionForm").show();
+        $("#actionFormBooting").hide();
+        $("#actionFormBooted").show();
+        $("#actionFormAuthorizing").hide();
+        $("#actionFormAuthorized").show();
+        $("#actionFormTransactionStarted").hide();
+      };
+
+      const stateTransactionStarted = () => {
+        $("#status").html("🟢 ");
+        $("#ocppForm").hide();
+        $("#actionForm").show();
+        $("#actionFormBooting").hide();
+        $("#actionFormBooted").show();
+        $("#actionFormAuthorizing").hide();
+        $("#actionFormAuthorized").hide();
+        $("#actionFormTransactionStarted").show();
+      };
+
+      // WebSocket Logic -------------------------------------------------------------------------------------------------
+
+      let websocket;
 
       const webSocketOnOpen = () => {
         addLog("log", "WebSocket connection established.");
-        connected();
+        stateConnected();
       };
 
+      let lastTransactionId = null;
       const webSocketOnMessage = (event) => {
-        addLog("log", "Received message:", parseCallResponse(event.data));
+        const message = parseCallResponse(event.data);
+        addLog("log", "Received message:", message);
+        if (message.type === "CALL_RESULT") {
+          if (message.rememberedAction === "BootNotification") {
+            stateBooted();
+          }
+          if (message.rememberedAction === "Authorize") {
+            stateAuthorized();
+          }
+          if (message.rememberedAction === "StartTransaction") {
+            lastTransactionId = message.payload["transactionId"];
+            stateTransactionStarted();
+          }
+          if (message.rememberedAction === "StopTransaction") {
+            stateAuthorized();
+          }
+        } else if (message.type === "CALL") {
+          if (message.action === "RemoteStartTransaction") {
+            $("#idTag").val(message.payload.idTag);
+            stateTransactionStarted();
+          }
+        }
       };
 
       const webSocketOnClose = () => {
         addLog("log", "WebSocket connection closed.");
-        disconnected();
+        stateDisconnected();
       };
 
       const webSocketOnError = (error) => {
         addLog("error", "WebSocket error:", error);
-        disconnected();
+        stateDisconnected();
       };
 
       $("#connectBtn").click(() => {
@@ -193,8 +345,66 @@
         sendData(bootNotificationMsg);
       });
       $("#sendHeartBeatBtn").click(() => {
-        const bootNotificationMsg = createCall("Heartbeat", {});
-        sendData(bootNotificationMsg);
+        const message = createCall("Heartbeat", {});
+        sendData(message);
+      });
+      $("#sendStatusNotifBtn").click(() => {
+        const message = createCall("StatusNotification", {
+          connectorId: 0,
+          errorCode: $("#statusNotifErrorCode").val(),
+          status: $("#statusNotifStatus").val(),
+        });
+        sendData(message);
+      });
+      $("#sendAuthorizeBtn").click(() => {
+        const message = createCall("Authorize", {
+          idTag: $("#idTag").val(),
+        });
+        sendData(message);
+      });
+      $("#sendMeterValueBtn").click(() => {
+        const message = createCall("MeterValues", {
+          connectorId: 0,
+          transactionId: lastTransactionId,
+          meterValue: [
+            {
+              timestamp: new Date().toISOString(),
+              sampledValue: [
+                {
+                  value: $("#meterValue").val(),
+                  context: "Sample.Periodic",
+                  format: "Raw",
+                  measurand: "Power.Active.Export",
+                  phase: "L1",
+                  location: "Outlet",
+                  unit: "W",
+                },
+              ],
+            },
+          ],
+        });
+        sendData(message);
+      });
+      $("#sendStartTxnBtn").click(() => {
+        const message = createCall("StartTransaction", {
+          connectorId: 0,
+          idTag: $("#idTag").val(),
+          meterStart: parseInt($("#meterValue").val()),
+          timestamp: new Date().toISOString(),
+        });
+        sendData(message);
+      });
+      $("#sendStopTxnBtn").click(() => {
+        const message = createCall("StopTransaction", {
+          transactionId: lastTransactionId,
+          meterStop: parseInt($("#meterValue").val()),
+          timestamp: new Date().toISOString(),
+        });
+        sendData(message);
+      });
+
+      $(document).ready(() => {
+        stateDisconnected();
       });
     </script>
   </body>
