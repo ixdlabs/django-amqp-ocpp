@@ -1,25 +1,6 @@
 from django.contrib import admin
 
-from ocpp.models import ChargePoint, Transaction, Message, MeterValue
-
-
-class ReadOnlyTabularInline(admin.TabularInline):
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-
-class MessageInlineAdmin(ReadOnlyTabularInline):
-    model = Message
-
-
-class MeterValueInlineAdmin(admin.TabularInline):
-    model = MeterValue
+from ocpp.models import ChargePoint, Transaction
 
 
 @admin.register(ChargePoint)
@@ -48,7 +29,6 @@ class ChargePointAdmin(admin.ModelAdmin):
         "last_tx_start_at",
         "last_tx_stop_at",
     )
-    inlines = [MessageInlineAdmin]
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -69,7 +49,6 @@ class TransactionAdmin(admin.ModelAdmin):
         "charge_point__id",
         "charge_point__name",
     )
-    inlines = [MeterValueInlineAdmin, MessageInlineAdmin]
 
     def has_add_permission(self, request, obj=None):
         return False
